@@ -77,7 +77,22 @@ const xmlFilesData = await Promise.all(
 
       for (const book of bookList) {
         if (code === book) {
-          return code;
+          const InvoiceId = fullXmlContent.AttachedDocument["cbc:ParentDocumentID"][0];
+          const bookName = item["cac:Item"][0]["cbc:Description"][0];
+          const unitPrice = Number(
+            item["cac:Price"][0]["cbc:PriceAmount"][0]["_"]
+          );
+          const ammount = Number(item["cbc:InvoicedQuantity"][0]["_"]);
+
+          const royaltyLine = {
+            'Id': InvoiceId,
+            'ISBN': code,
+            'Libro': bookName,
+            'PVP': unitPrice,
+            'Ejemplares': ammount,
+            'Total facturado': ammount * unitPrice
+          }
+          return royaltyLine;
         } else {
           return;
         }
@@ -87,7 +102,8 @@ const xmlFilesData = await Promise.all(
     return itemsArray;
   })
 );
-console.log("🚀 ~ file: index.js:46 ~ xmlFilesData:", xmlFilesData);
+const invoicesData = xmlFilesData.flatMap((e) => e).filter((e) => e !== undefined);
+console.log("🚀 ~ file: index.js:97 ~ invoicesData:", invoicesData)
 
 // console.log(`Autor: ${author}`);
 // console.log('Libros:')

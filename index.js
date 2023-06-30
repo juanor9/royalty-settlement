@@ -2,7 +2,6 @@ import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import * as fs from "fs";
 import * as xml2js from "xml2js";
-import { type } from "node:os";
 
 const rl = readline.createInterface({ input, output });
 
@@ -38,72 +37,75 @@ const allFilesPath = files.map((file) => {
 });
 const xmlFilesPath = allFilesPath.filter((file) => file !== null); // Lista de ruta de todos los archivos xml
 
-const xmlFilesData = await Promise.all(
-  xmlFilesPath.map(async (file) => {
-    const xmlBuffer = await fs.promises.readFile(file);
-    const xmlString = xmlBuffer.toString("utf-8");
+const bookListData = await Promise.all(
+  bookList.map(async (book) => {
+    const xmlFiles = await Promise.all(
+      xmlFilesPath.map(async (file) => {
+        const xmlBuffer = await fs.promises.readFile(file);
+        const xmlString = xmlBuffer.toString("utf-8");
 
-    const fullXmlContent = await new Promise((resolve, reject) => {
-      // Devuelve un objeto con toda la informacion del archivo xml
-      xml2js.parseString(xmlString, (err, result) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(result);
-        }
-      });
-    });
+        const fullXmlContent = await new Promise((resolve, reject) => {
+          xml2js.parseString(xmlString, (err, result) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(result);
+            }
+          });
+        });
 
-    const dataDescriptionString =
-      fullXmlContent.AttachedDocument["cac:Attachment"][0][
-        "cac:ExternalReference"
-      ][0]["cbc:Description"][0]; // Devuelve un string con el xml de la descripcion de la factura
-    const dataDescription = await new Promise((resolve, reject) => {
-      // Devuelve un objeto con toda la informacion de la descripcion archivo xml
-      xml2js.parseString(dataDescriptionString, (err, result) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(result);
-        }
-      });
-    });
-    const itemsXml = dataDescription.Invoice["cac:InvoiceLine"];
-    const itemsArray = itemsXml.map((item) => {
-      const code =
-        item["cac:Item"][0]["cac:StandardItemIdentification"][0]["cbc:ID"][0][
-          "_"
-        ];
+        const dataDescriptionString =
+          fullXmlContent.AttachedDocument["cac:Attachment"][0][
+            "cac:ExternalReference"
+          ][0]["cbc:Description"][0];
+        const dataDescription = await new Promise((resolve, reject) => {
+          xml2js.parseString(dataDescriptionString, (err, result) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(result);
+            }
+          });
+        });
 
-      for (const book of bookList) {
-        if (code === book) {
-          const InvoiceId = fullXmlContent.AttachedDocument["cbc:ParentDocumentID"][0];
+        const itemsXml = dataDescription.Invoice["cac:InvoiceLine"];
+        const itemsArray = itemsXml.map((item) => {
+          const code =
+            item["cac:Item"][0]["cac:StandardItemIdentification"][0][
+              "cbc:ID"
+            ][0]["_"];
+          const InvoiceId =
+            fullXmlContent.AttachedDocument["cbc:ParentDocumentID"][0];
           const bookName = item["cac:Item"][0]["cbc:Description"][0];
           const unitPrice = Number(
             item["cac:Price"][0]["cbc:PriceAmount"][0]["_"]
           );
           const ammount = Number(item["cbc:InvoicedQuantity"][0]["_"]);
 
-          const royaltyLine = {
-            'Id': InvoiceId,
-            'ISBN': code,
-            'Libro': bookName,
-            'PVP': unitPrice,
-            'Ejemplares': ammount,
-            'Total facturado': ammount * unitPrice
+          if (code === book) {
+            const royaltyLine = {
+              id: InvoiceId,
+              isbn: code,
+              book: bookName,
+              PVP: unitPrice,
+              ammount,
+              billed: ammount * unitPrice,
+            };
+            return royaltyLine;
           }
-          return royaltyLine;
-        } else {
-          return;
-        }
-      }
-    });
+        });
+        const cleanItemsArray = itemsArray.filter((item) => item !== undefined);
 
-    return itemsArray;
+        return cleanItemsArray;
+      })
+    );
+
+    const cleanXmlFiles = xmlFiles.filter((item) => item.length > 0).flat();
+
+    return cleanXmlFiles;
   })
 );
-const invoicesData = xmlFilesData.flatMap((e) => e).filter((e) => e !== undefined);
-console.log("🚀 ~ file: index.js:97 ~ invoicesData:", invoicesData)
+console.log("🚀 ~ file: index.js:44 ~ bookListData:", bookListData);
 
 // console.log(`Autor: ${author}`);
 // console.log('Libros:')

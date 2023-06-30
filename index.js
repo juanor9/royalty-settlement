@@ -2,23 +2,27 @@ import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import * as fs from "fs";
 import * as xml2js from "xml2js";
+import { Decimal } from "decimal.js";
 
 const rl = readline.createInterface({ input, output });
 
-// const author = await rl.question(
-//   "¿A qué autor quieres hacer la liquidación de regalías? "
-// );
+const author = await rl.question(
+  "¿A qué autor quieres hacer la liquidación de regalías? "
+);
 const bookListString = await rl.question(
   "Por favor indica los isbn de los libros sobre los que quieres liquidar regalías. Incluye el código tal cual está registrado en las facturas. Separa cada código por una coma (,). "
 );
 const bookList = bookListString.split(",").map((book) => book.trim());
 
-// const percentages = {};
+const percentages = {};
 
-// for (const book of bookList) {
-//   const percentage = await rl.question(`Ingrese el porcentaje de regalías para el libro ${book}. Por favor escribe solo el número sin el signo %: `);
-//   percentages[book] = percentage;
-// };
+for (const book of bookList) {
+  const percentage = await rl.question(
+    `Ingrese el porcentaje de regalías para el libro ${book}. Por favor escribe solo el número sin el signo %: `
+  );
+  const decimalPercentage = percentage;
+  percentages[book] = decimalPercentage;
+}
 
 rl.close();
 
@@ -82,6 +86,12 @@ const bookListData = await Promise.all(
           );
           const ammount = Number(item["cbc:InvoicedQuantity"][0]["_"]);
 
+          const billed = ammount * unitPrice;
+          const royaltiesPercentage = percentages[book];
+          const royaltiesForCalculations = Decimal(royaltiesPercentage)
+            .div(100)
+            .toNumber();
+
           if (code === book) {
             const royaltyLine = {
               id: InvoiceId,
@@ -89,7 +99,11 @@ const bookListData = await Promise.all(
               book: bookName,
               PVP: unitPrice,
               ammount,
-              billed: ammount * unitPrice,
+              billed,
+              royalties: `${royaltiesPercentage}%`,
+              payedRoyalties: Decimal(billed)
+                .mul(royaltiesForCalculations)
+                .toNumber(),
             };
             return royaltyLine;
           }
@@ -102,13 +116,35 @@ const bookListData = await Promise.all(
 
     const cleanXmlFiles = xmlFiles.filter((item) => item.length > 0).flat();
 
+    const object = {
+      book,
+      sales: cleanXmlFiles,
+    };
+
     return cleanXmlFiles;
   })
 );
 console.log("🚀 ~ file: index.js:44 ~ bookListData:", bookListData);
 
-// console.log(`Autor: ${author}`);
-// console.log('Libros:')
-// for (const book in percentages) {
-//   console.log(`- ${book}: ${percentages[book]}%`);
-// }
+console.log(`Autor: ${author}`);
+console.log("Libros:");
+for (const book in percentages) {
+  console.log(`- ${book}: ${percentages[book]}%`);
+}
+console.log("Ventas:");
+console.log(bookListData);
+
+const csv = readline.createInterface({ input, output });
+let generateCSV = "";
+
+generateCSV = await csv.question(
+  "¿Quieres generar un archivo CSV con esta información? (y/n)"
+);
+
+csv.close();
+
+if (generateCSV === "y" || generateCSV === "yes" || generateCSV === "si"|| generateCSV === "sí") {
+  console.log("Se genera el archivo CSV");
+} else {
+  console.log("No se generará el archivo CSV");
+}

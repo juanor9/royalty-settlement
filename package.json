@@ -13,6 +13,7 @@
   "license": "MIT License",
   "dependencies": {
     "decimal.js": "^10.4.3",
+    "exceljs": "^4.3.0",
     "fs": "^0.0.1-security",
     "xml2js": "^0.6.0"
   }

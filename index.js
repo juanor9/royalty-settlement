@@ -3,6 +3,7 @@ import { stdin as input, stdout as output } from "node:process";
 import * as fs from "fs";
 import * as xml2js from "xml2js";
 import { Decimal } from "decimal.js";
+import ExcelJS from "exceljs";
 
 const rl = readline.createInterface({ input, output });
 
@@ -116,11 +117,6 @@ const bookListData = await Promise.all(
 
     const cleanXmlFiles = xmlFiles.filter((item) => item.length > 0).flat();
 
-    const object = {
-      book,
-      sales: cleanXmlFiles,
-    };
-
     return cleanXmlFiles;
   })
 );
@@ -135,16 +131,28 @@ console.log("Ventas:");
 console.log(bookListData);
 
 const csv = readline.createInterface({ input, output });
-let generateCSV = "";
 
-generateCSV = await csv.question(
+const generateCSV = await csv.question(
   "¿Quieres generar un archivo CSV con esta información? (y/n)"
 );
 
 csv.close();
 
-if (generateCSV === "y" || generateCSV === "yes" || generateCSV === "si"|| generateCSV === "sí") {
-  console.log("Se genera el archivo CSV");
+const createExcel = async () => {
+  const workbook = new ExcelJS.Workbook();
+  // console.log("🚀 ~ file: index.js:144 ~ workbook:", workbook);
+
+  await workbook.xlsx.writeFile("./excel-files/settlement.xlsx");
+}
+
+if (
+  generateCSV === "y" ||
+  generateCSV === "yes" ||
+  generateCSV === "si" ||
+  generateCSV === "sí"
+) {
+  createExcel();
+  console.log("Se generó el archivo CSV");
 } else {
   console.log("No se generará el archivo CSV");
 }

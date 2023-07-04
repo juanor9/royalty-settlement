@@ -133,74 +133,76 @@ console.log(bookListData);
 const csv = readline.createInterface({ input, output });
 
 const generateCSV = await csv.question(
-  "¿Quieres generar un archivo CSV con esta información? (y/n)"
+  "¿Quieres generar un archivo de Excel con esta información? (y/n)"
 );
 
 csv.close();
 
-const createExcel = async () => {
-  
+const createExcel = async (sales) => {
   function dateToSlug(date) {
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-  
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const seconds = String(date.getSeconds()).padStart(2, "0");
+
     const slug = `${year}_${month}_${day}_${hours}_${minutes}_${seconds}`;
     return slug.toLowerCase();
   }
   const dateHour = dateToSlug(new Date());
-  
 
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("liquidación");
 
-  worksheet.columns = [
-    {
-      header: "Id de factura",
-      key: "id",
-      width: 15,
-    },
-    {
-      header: "ISBN",
-      key: "isbn",
-      width: 10,
-    },
-    {
-      header: "Libro",
-      key: "book",
-      width: 30,
-    },
-    {
-      header: "PVP",
-      key: "PVP",
-      width: 10,
-    },
-    {
-      header: "Ejemplares vendidos",
-      key: "ammount",
-      width: 19,
-    },
-    {
-      header: "Total facturado",
-      key: "billed",
-      width: 14,
-    },
-    {
-      header: "Porcentaje de regalías",
-      key: "royalties",
-      width: 20,
-    },
-    {
-      header: "Regalías generadas",
-      key: "payedRoyalties",
-      width: 18,
-    },
-  ];
+  sales.forEach((item) => {
+    worksheet.columns = [
+      {
+        header: "Id de factura",
+        key: "id",
+        width: 12,
+      },
+      {
+        header: "ISBN",
+        key: "isbn",
+        width: 15,
+      },
+      {
+        header: "Libro",
+        key: "book",
+        width: 30,
+      },
+      {
+        header: "PVP",
+        key: "PVP",
+        width: 10,
+      },
+      {
+        header: "Ejemplares vendidos",
+        key: "ammount",
+        width: 19,
+      },
+      {
+        header: "Total facturado",
+        key: "billed",
+        width: 14,
+      },
+      {
+        header: "Porcentaje de regalías",
+        key: "royalties",
+        width: 20,
+      },
+      {
+        header: "Regalías generadas",
+        key: "payedRoyalties",
+        width: 18,
+      },
+    ];
+    worksheet.addRows(item);
+    worksheet.addRow(' ');
+  });
 
-  await workbook.xlsx.writeFile(`./excel-files/settlement-${dateHour}.xlsx`);
+  await workbook.xlsx.writeFile(`./excel-files/${author}-royalties-${dateHour}.xlsx`);
 };
 
 if (
@@ -209,8 +211,9 @@ if (
   generateCSV === "si" ||
   generateCSV === "sí"
 ) {
-  createExcel();
-  console.log("Se generó el archivo CSV");
+  createExcel(bookListData);
+
+  console.log("Se generó el archivo");
 } else {
-  console.log("No se generará el archivo CSV");
+  console.log("No se generará el archivo");
 }

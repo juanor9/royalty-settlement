@@ -12,20 +12,39 @@ const rl = readline.createInterface({ input, output });
 const author = await rl.question(
   "¿A qué autor quieres hacer la liquidación de regalías? "
 );
-
+// Validar que se ingresó un autor
+if (!author) {
+  console.log("No se ingresó ningún autor. Terminando programa.");
+  process.exit(0);
+}
 // Preguntar al usuario los ISBN de los libros para liquidar regalías
 const bookListString = await rl.question(
   "Por favor indica los isbn de los libros sobre los que quieres liquidar regalías. Incluye el código tal cual está registrado en las facturas. Separa cada código por una coma (,). "
 );
-const bookList = bookListString.split(",").map((book) => book.trim());
+const bookList = await bookListString.split(",").map((book) => book.trim());
 
-const percentages = {};
+// Validar que se ingresó al menos un código
+if (!bookListString) {
+  console.log("No se ingresó ningún libro. Terminando programa.");
+  process.exit(0);
+}
 
 // Obtener el porcentaje de regalías para cada libro
+const percentages = {};
 for (const book of bookList) {
   const percentage = await rl.question(
     `Ingrese el porcentaje de regalías para el libro ${book}. Por favor escribe solo el número sin el signo %: `
   );
+  // Validar que se ingresó un porcentaje
+  if (!percentage) {
+    console.log("No se ingresó ningún porcentaje. Terminando programa.");
+    process.exit(0);
+  }
+  // Validar que el porcentaje ingresado está en un rango adecuado (entre 0 y 100)
+  if (Number(percentage) < 0 || Number(percentage) > 100) {
+    console.log("El porcentaje ingresado no es adecuado. Terminando programa.");
+    process.exit(0);
+  }
   const decimalPercentage = percentage;
   percentages[book] = decimalPercentage;
 }
@@ -92,6 +111,7 @@ const bookListData = await Promise.all(
             ][0]["_"];
           const InvoiceId =
             fullXmlContent.AttachedDocument["cbc:ParentDocumentID"][0];
+          const invoiceDate = dataDescription.Invoice["cbc:IssueDate"][0];
           const bookName = item["cac:Item"][0]["cbc:Description"][0];
           const unitPrice = Number(
             item["cac:Price"][0]["cbc:PriceAmount"][0]["_"]
@@ -107,6 +127,7 @@ const bookListData = await Promise.all(
           if (code === book) {
             const royaltyLine = {
               id: InvoiceId,
+              date: invoiceDate,
               isbn: code,
               book: bookName,
               PVP: unitPrice,
@@ -144,14 +165,14 @@ console.log("Ventas:");
 console.log(bookListData);
 
 // Crear una interfaz readline para leer desde la consola
-const csv = readline.createInterface({ input, output });
+const excel = readline.createInterface({ input, output });
 
 // Preguntar al usuario si desea generar un archivo de Excel con la información
-const generateCSV = await csv.question(
+const generateExcel = await excel.question(
   "¿Quieres generar un archivo de Excel con esta información? (y/n)"
 );
 
-csv.close();
+excel.close();
 
 // Función para crear un archivo de Excel con la información de ventas
 const createExcel = async (sales) => {
@@ -179,6 +200,11 @@ const createExcel = async (sales) => {
       header: "Id de factura",
       key: "id",
       width: 12,
+    },
+    {
+      header: "Fecha",
+      key: "date",
+      width: 10,
     },
     {
       header: "ISBN",
@@ -246,10 +272,10 @@ const createExcel = async (sales) => {
 
 // Verificar si el usuario desea generar el archivo de Excel
 if (
-  generateCSV === "y" ||
-  generateCSV === "yes" ||
-  generateCSV === "si" ||
-  generateCSV === "sí"
+  generateExcel === "y" ||
+  generateExcel === "yes" ||
+  generateExcel === "si" ||
+  generateExcel === "sí"
 ) {
   createExcel(bookListData);
   console.log("Se generó el archivo");

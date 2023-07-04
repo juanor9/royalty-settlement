@@ -5,11 +5,15 @@ import * as xml2js from "xml2js";
 import { Decimal } from "decimal.js";
 import ExcelJS from "exceljs";
 
+// Crear una interfaz readline para leer desde la consola
 const rl = readline.createInterface({ input, output });
 
+// Preguntar al usuario el autor para la liquidación de regalías
 const author = await rl.question(
   "¿A qué autor quieres hacer la liquidación de regalías? "
 );
+
+// Preguntar al usuario los ISBN de los libros para liquidar regalías
 const bookListString = await rl.question(
   "Por favor indica los isbn de los libros sobre los que quieres liquidar regalías. Incluye el código tal cual está registrado en las facturas. Separa cada código por una coma (,). "
 );
@@ -17,6 +21,7 @@ const bookList = bookListString.split(",").map((book) => book.trim());
 
 const percentages = {};
 
+// Obtener el porcentaje de regalías para cada libro
 for (const book of bookList) {
   const percentage = await rl.question(
     `Ingrese el porcentaje de regalías para el libro ${book}. Por favor escribe solo el número sin el signo %: `
@@ -27,10 +32,12 @@ for (const book of bookList) {
 
 rl.close();
 
-// Analizar xml
+// Analizar los archivos XML
 const path = "./xml-billing";
 
-const files = await fs.promises.readdir(path); //Lista de todos los archivos en path
+// Obtener la lista de archivos en el directorio
+const files = await fs.promises.readdir(path);
+// Filtrar los archivos para obtener solo los archivos XML
 const allFilesPath = files.map((file) => {
   const filePath = `${path}/${file}`;
   const extension = file.split(".")[1];
@@ -40,8 +47,9 @@ const allFilesPath = files.map((file) => {
     return null;
   }
 });
-const xmlFilesPath = allFilesPath.filter((file) => file !== null); // Lista de ruta de todos los archivos xml
+const xmlFilesPath = allFilesPath.filter((file) => file !== null);
 
+// Obtener los datos de los libros de los archivos XML
 const bookListData = await Promise.all(
   bookList.map(async (book) => {
     const xmlFiles = await Promise.all(
@@ -49,6 +57,7 @@ const bookListData = await Promise.all(
         const xmlBuffer = await fs.promises.readFile(file);
         const xmlString = xmlBuffer.toString("utf-8");
 
+        // Analizar el contenido XML utilizando xml2js
         const fullXmlContent = await new Promise((resolve, reject) => {
           xml2js.parseString(xmlString, (err, result) => {
             if (err) {
@@ -59,6 +68,7 @@ const bookListData = await Promise.all(
           });
         });
 
+        // Obtener la descripción de los datos desde el XML
         const dataDescriptionString =
           fullXmlContent.AttachedDocument["cac:Attachment"][0][
             "cac:ExternalReference"
@@ -73,6 +83,7 @@ const bookListData = await Promise.all(
           });
         });
 
+        // Obtener los elementos del XML que representan los libros
         const itemsXml = dataDescription.Invoice["cac:InvoiceLine"];
         const itemsArray = itemsXml.map((item) => {
           const code =
@@ -101,7 +112,7 @@ const bookListData = await Promise.all(
               PVP: unitPrice,
               ammount,
               billed,
-              royalties: `${royaltiesPercentage}%`,
+              royalties: royaltiesForCalculations,
               payedRoyalties: Decimal(billed)
                 .mul(royaltiesForCalculations)
                 .toNumber(),
@@ -120,8 +131,10 @@ const bookListData = await Promise.all(
     return cleanXmlFiles;
   })
 );
+
 console.log("🚀 ~ file: index.js:44 ~ bookListData:", bookListData);
 
+// Imprimir información sobre el autor, los libros y las ventas
 console.log(`Autor: ${author}`);
 console.log("Libros:");
 for (const book in percentages) {
@@ -130,16 +143,20 @@ for (const book in percentages) {
 console.log("Ventas:");
 console.log(bookListData);
 
+// Crear una interfaz readline para leer desde la consola
 const csv = readline.createInterface({ input, output });
 
+// Preguntar al usuario si desea generar un archivo de Excel con la información
 const generateCSV = await csv.question(
   "¿Quieres generar un archivo de Excel con esta información? (y/n)"
 );
 
 csv.close();
 
+// Función para crear un archivo de Excel con la información de ventas
 const createExcel = async (sales) => {
   function dateToSlug(date) {
+    // Función para convertir una fecha en un formato de slug
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
@@ -150,61 +167,84 @@ const createExcel = async (sales) => {
     const slug = `${year}_${month}_${day}_${hours}_${minutes}_${seconds}`;
     return slug.toLowerCase();
   }
+
   const dateHour = dateToSlug(new Date());
 
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("liquidación");
 
+  // Configurar las columnas del archivo de Excel
+  worksheet.columns = [
+    {
+      header: "Id de factura",
+      key: "id",
+      width: 12,
+    },
+    {
+      header: "ISBN",
+      key: "isbn",
+      width: 15,
+      style: {
+        numFmt: "0",
+      },
+    },
+    {
+      header: "Libro",
+      key: "book",
+      width: 30,
+    },
+    {
+      header: "PVP",
+      key: "PVP",
+      width: 10,
+      style: {
+        numFmt: '"$"#,##0.00',
+      },
+    },
+    {
+      header: "Ejemplares vendidos",
+      key: "ammount",
+      width: 19,
+    },
+    {
+      header: "Total facturado",
+      key: "billed",
+      width: 14,
+      style: {
+        numFmt: '"$"#,##0.00',
+      },
+    },
+    {
+      header: "Porcentaje de regalías",
+      key: "royalties",
+      width: 20,
+      style: {
+        numFmt: "0%",
+      },
+    },
+    {
+      header: "Regalías generadas",
+      key: "payedRoyalties",
+      width: 18,
+      style: {
+        numFmt: '"$"#,##0.00',
+      },
+    },
+  ];
+
+  // Agregar filas al archivo de Excel con los datos de ventas
   sales.forEach((item) => {
-    worksheet.columns = [
-      {
-        header: "Id de factura",
-        key: "id",
-        width: 12,
-      },
-      {
-        header: "ISBN",
-        key: "isbn",
-        width: 15,
-      },
-      {
-        header: "Libro",
-        key: "book",
-        width: 30,
-      },
-      {
-        header: "PVP",
-        key: "PVP",
-        width: 10,
-      },
-      {
-        header: "Ejemplares vendidos",
-        key: "ammount",
-        width: 19,
-      },
-      {
-        header: "Total facturado",
-        key: "billed",
-        width: 14,
-      },
-      {
-        header: "Porcentaje de regalías",
-        key: "royalties",
-        width: 20,
-      },
-      {
-        header: "Regalías generadas",
-        key: "payedRoyalties",
-        width: 18,
-      },
-    ];
     worksheet.addRows(item);
-    worksheet.addRow(' ');
+    worksheet.addRow(" ");
   });
 
-  await workbook.xlsx.writeFile(`./excel-files/${author}-royalties-${dateHour}.xlsx`);
+  // Guardar el archivo de Excel
+  await workbook.xlsx.writeFile(
+    `./excel-files/${author}-royalties-${dateHour}.xlsx`
+  );
 };
 
+// Verificar si el usuario desea generar el archivo de Excel
 if (
   generateCSV === "y" ||
   generateCSV === "yes" ||
@@ -212,7 +252,6 @@ if (
   generateCSV === "sí"
 ) {
   createExcel(bookListData);
-
   console.log("Se generó el archivo");
 } else {
   console.log("No se generará el archivo");

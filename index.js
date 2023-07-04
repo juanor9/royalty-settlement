@@ -139,11 +139,69 @@ const generateCSV = await csv.question(
 csv.close();
 
 const createExcel = async () => {
-  const workbook = new ExcelJS.Workbook();
-  // console.log("🚀 ~ file: index.js:144 ~ workbook:", workbook);
+  
+  function dateToSlug(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+  
+    const slug = `${year}_${month}_${day}_${hours}_${minutes}_${seconds}`;
+    return slug.toLowerCase();
+  }
+  const dateHour = dateToSlug(new Date());
+  
 
-  await workbook.xlsx.writeFile("./excel-files/settlement.xlsx");
-}
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("liquidación");
+
+  worksheet.columns = [
+    {
+      header: "Id de factura",
+      key: "id",
+      width: 15,
+    },
+    {
+      header: "ISBN",
+      key: "isbn",
+      width: 10,
+    },
+    {
+      header: "Libro",
+      key: "book",
+      width: 30,
+    },
+    {
+      header: "PVP",
+      key: "PVP",
+      width: 10,
+    },
+    {
+      header: "Ejemplares vendidos",
+      key: "ammount",
+      width: 19,
+    },
+    {
+      header: "Total facturado",
+      key: "billed",
+      width: 14,
+    },
+    {
+      header: "Porcentaje de regalías",
+      key: "royalties",
+      width: 20,
+    },
+    {
+      header: "Regalías generadas",
+      key: "payedRoyalties",
+      width: 18,
+    },
+  ];
+
+  await workbook.xlsx.writeFile(`./excel-files/settlement-${dateHour}.xlsx`);
+};
 
 if (
   generateCSV === "y" ||
